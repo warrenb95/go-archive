@@ -20,7 +20,11 @@ func TestCompress(t *testing.T) {
 	}()
 	require.NoError(t, err, "opening test.txt")
 
-	filepath, err := compresser.Compress(sourceFile)
+	sourceBuf := new(bytes.Buffer)
+	sourceReader := io.TeeReader(sourceFile, sourceBuf)
+	require.NoError(t, err, "read all source file")
+
+	filepath, err := compresser.Compress(sourceReader)
 	require.NoError(t, err, "compressing source file")
 
 	compressedFile, err := os.Open(filepath)
@@ -30,7 +34,7 @@ func TestCompress(t *testing.T) {
 	}()
 	require.NoErrorf(t, err, "opening file: %s", filepath)
 
-	buf := new(bytes.Buffer)
+	decompressedBuf := new(bytes.Buffer)
 	gr, err := gzip.NewReader(compressedFile)
 	require.NoError(t, err, "new gzip reader")
 	defer func() {
@@ -38,13 +42,11 @@ func TestCompress(t *testing.T) {
 		require.NoError(t, err, "closing gzip reader")
 	}()
 
-	_, err = io.Copy(buf, gr)
+	_, err = io.Copy(decompressedBuf, gr)
 	require.NoError(t, err, "copying gzip reader")
 
-	// TODO: fix issue with sourceBytes being empty
-	// re-read the file?
-	sourceBytes, err := io.ReadAll(sourceFile)
-	require.NoError(t, err, "read all source file")
+	assert.Equal(t, sourceBuf.Bytes(), decompressedBuf.Bytes(), "buffer bytes")
 
-	assert.Equal(t, sourceBytes, buf.Bytes(), "buffer bytes")
+	err = os.Remove(filepath)
+	require.NoError(t, err, "removing compressed file")
 }
