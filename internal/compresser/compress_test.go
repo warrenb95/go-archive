@@ -24,15 +24,16 @@ func TestCompress(t *testing.T) {
 	sourceReader := io.TeeReader(sourceFile, sourceBuf)
 	require.NoError(t, err, "read all source file")
 
-	filepath, err := compresser.Compress(sourceReader)
+	fp := "out.gzip"
+	err = compresser.Compress(fp, sourceReader)
 	require.NoError(t, err, "compressing source file")
 
-	compressedFile, err := os.Open(filepath)
+	compressedFile, err := os.Open(fp)
 	defer func() {
 		err := compressedFile.Close()
 		require.NoError(t, err, "closing compressed file")
 	}()
-	require.NoErrorf(t, err, "opening file: %s", filepath)
+	require.NoErrorf(t, err, "opening file: %s", fp)
 
 	decompressedBuf := new(bytes.Buffer)
 	gr, err := gzip.NewReader(compressedFile)
@@ -47,6 +48,6 @@ func TestCompress(t *testing.T) {
 
 	assert.Equal(t, sourceBuf.Bytes(), decompressedBuf.Bytes(), "buffer bytes")
 
-	err = os.Remove(filepath)
+	err = os.Remove(fp)
 	require.NoError(t, err, "removing compressed file")
 }
